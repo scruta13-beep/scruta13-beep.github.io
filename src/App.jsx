@@ -21,7 +21,7 @@ export default function App() {
   const [amount, setAmount] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [controlNumber, setControlNumber] = useState('');
-
+  
   const handleChange = (e) => {
     setClient({ ...client, [e.target.name]: e.target.value });
   };
@@ -29,6 +29,11 @@ export default function App() {
   const generatePDF = (copyType) => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Lógica del cálculo
+    const baseImponible = parseFloat(amount) || 0;
+    const iva = baseImponible * 0.16; // 16% de IVA
+    const totalPagar = baseImponible + iva;
 
     // --- Encabezado de la Empresa ---
     doc.setFontSize(12);
@@ -46,7 +51,7 @@ export default function App() {
     doc.setFont('helvetica', 'bold');
     doc.text('FACTURA', pageWidth / 2, 45, { align: 'center' });
     
-    // --- Etiqueta Original / Copia ---
+    // Etiqueta de Original o Copia
     doc.setFontSize(10);
     doc.setTextColor(copyType === 'Original' ? 0 : 150);
     doc.text(copyType.toUpperCase(), pageWidth - 20, 45, { align: 'right' });
@@ -78,22 +83,32 @@ export default function App() {
     doc.text(`Dirección: ${client.address}`, 20, 108, { maxWidth: pageWidth - 40 });
     doc.text(`Teléfono: ${client.phone}`, 20, 115);
 
-    // --- Concepto y Monto ---
+    // --- Concepto ---
     doc.setFont('helvetica', 'bold');
     doc.text('CONCEPTO DE PAGO', 20, 127);
     doc.setFont('helvetica', 'normal');
     doc.text(concept, 20, 134, { maxWidth: pageWidth - 40 });
 
+    // --- Desglose de Montos ---
     doc.setFont('helvetica', 'bold');
-    doc.text('MONTO', 20, 147);
+    doc.text('DESGLOSE', 20, 147);
+    
     doc.setFont('helvetica', 'normal');
-    doc.text(`Bs. ${parseFloat(amount || 0).toFixed(2)}`, 20, 154);
+    doc.text('Base Imponible:', 20, 154);
+    doc.text(`Bs. ${baseImponible.toFixed(2)}`, 80, 154);
+
+    doc.text('IVA (16%):', 20, 161);
+    doc.text(`Bs. ${iva.toFixed(2)}`, 80, 161);
+
+    doc.setFont('helvetica', 'bold');
+    doc.text('Total a Pagar:', 20, 168);
+    doc.text(`Bs. ${totalPagar.toFixed(2)}`, 80, 168);
 
     // --- Pie de Página ---
     doc.setFontSize(8);
     doc.setFont('helvetica', 'italic');
-    doc.text('Documento emitido según normativa del SENIAT.', pageWidth / 2, 175, { align: 'center' });
-    doc.text('Gracias por su preferencia.', pageWidth / 2, 180, { align: 'center' });
+    doc.text('Documento emitido según normativa del SENIAT.', pageWidth / 2, 185, { align: 'center' });
+    doc.text('Gracias por su preferencia.', pageWidth / 2, 190, { align: 'center' });
 
     // Abrir en nueva pestaña
     const pdfBlob = doc.output('bloburl');
@@ -102,7 +117,7 @@ export default function App() {
 
   const handlePrint = () => {
     if (!client.name || !client.lastName || !client.id || !concept || !amount) {
-      alert('Por favor, complete todos los campos obligatorios.');
+      alert('Por favor, complete todos los campos obligatorios (Nombre, Apellido, Cédula, Concepto y Monto).');
       return;
     }
     generatePDF('Original');
@@ -135,12 +150,24 @@ export default function App() {
             <input placeholder="N° de Factura (Ej. 001)" value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
             <input placeholder="N° de Control (Ej. 00-00000001)" value={controlNumber} onChange={(e) => setControlNumber(e.target.value)} />
             <textarea placeholder="Concepto de Pago" value={concept} onChange={(e) => setConcept(e.target.value)} rows="3" />
-            <input type="number" placeholder="Monto en Bs." value={amount} onChange={(e) => setAmount(e.target.value)} />
+            <input type="number" placeholder="Monto Base (Sin IVA) en Bs." value={amount} onChange={(e) => setAmount(e.target.value)} />
+            
+            {amount && (
+              <div style={{ marginTop: '10px', padding: '10px', backgroundColor: '#f3f4f6', borderRadius: '6px', fontSize: '14px' }}>
+                <p><strong>Base Imponible:</strong> Bs. {parseFloat(amount).toFixed(2)}</p>
+                <p><strong>IVA (16%):</strong> Bs. {(parseFloat(amount) * 0.16).toFixed(2)}</p>
+                <p style={{ fontSize: '16px', marginTop: '5px' }}><strong>Total a Pagar:</strong> Bs. {(parseFloat(amount) * 1.16).toFixed(2)}</p>
+              </div>
+            )}
           </div>
         </div>
         <div className="text-center" style={{ marginTop: '1.5rem' }}>
           <button onClick={handlePrint}>Imprimir Original y Copia</button>
         </div>
+      </div>
+    </div>
+  );
+}
       </div>
     </div>
   );
